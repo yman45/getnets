@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
 ${BASH_VERSION+shopt -s extglob}
+hash rm 2>/dev/null || { echo "rm is not found" >&2; DPND=1; }
+hash grep 2>/dev/null || { echo "grep is not found" >&2; DPND=1; }
+hash head 2>/dev/null || { echo "head is not found" >&2; DPND=1; }
+hash awk 2>/dev/null || { echo "awk is not found" >&2; DPND=1; }
+hash whois 2>/dev/null || { echo "whois is not found" >&2; DPND=1; }
+hash ipcalc 2>/dev/null || { echo "ipcalc is not found" >&2; DPND=1; }
+if [[ "$DPND" = 1 ]]; then
+    echo >&2 "not all dependency met"
+    exit 1
+fi
 GETFILE=~/.tmp-getnet
 CALCFILE=~/.tmp-getnet-calc
 ASFILE=~/.tmp-getnet-as
@@ -28,7 +38,7 @@ while :; do
                 shift 2
                 continue
             else
-                echo "must specify mnt parameter for query"
+                echo >&2 "must specify mnt parameter for query"
                 exit 1
             fi
             ;;
@@ -38,7 +48,7 @@ while :; do
                 shift 2
                 continue
             else
-                echo "must specify AS for query"
+                echo >&2 "must specify AS for query"
                 exit 1
             fi
             ;;
@@ -48,12 +58,12 @@ while :; do
                 shift 2
                 continue
             else
-                echo "must specify server for query"
+                echo >&2 "must specify server for query"
                 exit 1
             fi
             ;;
         -?*)
-            echo "unknown option $1"
+            echo >&2 "unknown option $1"
             ;;
         *)
             break
@@ -91,7 +101,7 @@ mntsearch() {
 }
 
 if [[ "$MNT" && "$AS" ]]; then
-    echo "can't search both AS and mnt parameter"
+    echo >&2 "can't search both AS and mnt parameter"
     exit 1
 elif [[ "$MNT" ]]; then
     if [[ "$MNT" != *-@(mnt|MNT) ]]; then
@@ -106,6 +116,6 @@ elif [[ "$AS" ]]; then
     rm "$ASFILE"
     mntsearch "$MNT"
 else
-    echo "no query specified"
+    echo >&2 "no query specified"
     exit 1
 fi
