@@ -1,121 +1,38 @@
 #!/usr/bin/env bash
 
-${BASH_VERSION+shopt -s extglob}
-hash rm 2>/dev/null || { echo "rm is not found" >&2; DPND=1; }
-hash grep 2>/dev/null || { echo "grep is not found" >&2; DPND=1; }
-hash head 2>/dev/null || { echo "head is not found" >&2; DPND=1; }
-hash awk 2>/dev/null || { echo "awk is not found" >&2; DPND=1; }
-hash whois 2>/dev/null || { echo "whois is not found" >&2; DPND=1; }
-hash ipcalc 2>/dev/null || { echo "ipcalc is not found" >&2; DPND=1; }
+hash whois 2>/dev/null || { echo "whois is not found" &>2; DPND=1; }
+hash sed 2>/dev/null || { echo "sed is not found" &>2; DPND=1; }
+hash sort 2>/dev/null || { echo "sort is not found" &>2; DPND=1; }
 if [[ "$DPND" = 1 ]]; then
-    echo >&2 "not all dependency met"
+    echo &>2 "not all dependency met"
     exit 1
 fi
-GETFILE=~/.tmp-getnet
-CALCFILE=~/.tmp-getnet-calc
-ASFILE=~/.tmp-getnet-as
+
 read -d '' help <<- EOF
-getnets - script get inetnums by mnt-by and mnt-lower
-usage: getnets MOUNTER [SERVER]
-it adds -MNT for you automatically ;)
-script use RIPE NCC options so it may not work with other servers
+getnets - script get all inetnums of autonomous system
+usage: getnets ASNUMBER
 EOF
 
 if [[ ! $1 ]]; then
     echo "$help"
     exit 1
+elif [[ $1 = -h || $1 = --help ]]; then
+    echo "$help"
+    exit 0
+elif [[ $1 -lt 1 || $1 -eq 65535 || $1 -gt 4294967294 ]]; then
+    echo "invalid ASN"
+    exit 1
+elif [[ $1 -gt 64511 && $1 -lt 65535 ]]; then
+    echo "private 16bit ASN"
+    exit 1
+elif [[ $1 -gt 4200000000 && $1 -lt 4294967295 ]]; then
+    echo "private 32bit ASN"
+    exit 1
 fi
 
-while :; do
-    case $1 in
-        -h|--help)
-            echo "$help"
-            exit 0
-            ;;
-        -m|--mount)
-            if [[ "$2" ]]; then
-                MNT="$2"
-                shift 2
-                continue
-            else
-                echo >&2 "must specify mnt parameter for query"
-                exit 1
-            fi
-            ;;
-        -a|--as)
-            if [[ "$2" ]]; then
-                AS="$2"
-                shift 2
-                continue
-            else
-                echo >&2 "must specify AS for query"
-                exit 1
-            fi
-            ;;
-        -s|--server)
-            if [[ "$2" ]]; then
-                SRV="$2"
-                shift 2
-                continue
-            else
-                echo >&2 "must specify server for query"
-                exit 1
-            fi
-            ;;
-        -?*)
-            echo >&2 "unknown option $1"
-            ;;
-        *)
-            break
-    esac
-
-    shift
+OUT=$(whois -h whois.radb.net "!gas$1" | sed '1d' | sed '$d')
+IFS=' ' read -ra NET <<< "$OUT"
+SNET=($(printf "%s\n" "${NET[@]}" | sort -u))
+for i in "${SNET[@]}"; do
+    echo "$i"
 done
-
-if [[ ! "$SRV" ]]; then 
-    SRV='whois.ripe.net'
-fi
-if [[ -f "$GETFILE" ]]; then
-    rm "$GETFILE"
-fi
-if [[ -f "$CALCFILE" ]]; then
-    rm "$CALCFILE"
-fi
-
-mntsearch() {
-    whois -h "$SRV" -T inetnum -i mnt-by "$1" | grep inetnum | awk '{print $2$3$4}' > "$GETFILE"
-    whois -h "$SRV" -T inetnum -i mnt-lower "$1" | grep inetnum | awk '{print $2$3$4}' >> "$GETFILE"
-    while read line; do
-        ipcalc "$line" >> "$CALCFILE"
-    done < "$GETFILE"
-    if [[ -f "$CALCFILE" ]]; then
-        grep / "$CALCFILE"
-        rm "$CALCFILE"
-        rm "$GETFILE"
-        exit 0
-    else
-        echo 'Qeury return nothing'
-        rm "$GETFILE"
-        exit 1
-    fi
-}
-
-if [[ "$MNT" && "$AS" ]]; then
-    echo >&2 "can't search both AS and mnt parameter"
-    exit 1
-elif [[ "$MNT" ]]; then
-    if [[ "$MNT" != *-@(mnt|MNT) ]]; then
-        MNT="$MNT-MNT"
-    else
-        MNT="$MNT"
-    fi
-    mntsearch "$MNT"
-elif [[ "$AS" ]]; then
-    whois -h "$SRV" as"$AS" | grep mnt-by | grep -v RIPE | awk '{print $2}' > "$ASFILE"
-    MNT=$(head -n 1 "$ASFILE")
-    rm "$ASFILE"
-    mntsearch "$MNT"
-else
-    echo >&2 "no query specified"
-    exit 1
-fi
