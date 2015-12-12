@@ -10,27 +10,78 @@ fi
 
 read -d '' help <<- EOF
 getnets - script get all inetnums of autonomous system
-usage: getnets ASNUMBER
+usage: getnets -4 ASNUMBER      for IPv4 subnets
+       getnets -6 ASNUMBER      for IPv6 subnets
+you can use --ipv4 or --ipv6 instead of short keys
+you can use short version - getnets ASNUMBER,
+just remember that it treat anything as ASNUMBER if
+there are only one argument
 EOF
 
 if [[ ! $1 ]]; then
     echo "$help"
     exit 1
-elif [[ $1 = -h || $1 = --help ]]; then
-    echo "$help"
-    exit 0
-elif [[ $1 -lt 1 || $1 -eq 65535 || $1 -gt 4294967294 ]]; then
+elif [[ ! $2 ]]; then
+    AS4="$1"
+else
+    while :; do
+        case $1 in
+            -h|--help)
+                echo "$help"
+                exit 0
+                ;;
+            -4|--ipv4)
+                if [[ "$2" ]];then
+                    AS4="$2"
+                    shift 2
+                    continue
+                else
+                    echo >&2 "must specify AS number"
+                    exit 1
+                fi
+                ;;
+            -6|--ipv6)
+                if [[ "$2" ]];then
+                    AS6="$2"
+                    shift 2
+                    continue
+                else
+                    echo >&2 "must specify AS number"
+                    exit 1
+                fi
+                ;;
+            ?*)
+                echo >&2 "unknown option $1"
+                ;;
+            *)
+                break
+        esac
+        shift
+    done
+fi
+if [[ $AS4 && $AS6 ]]; then
+    echo "choose only v4 or v6, not both"
+    exit 1
+elif [[ $AS4 ]]; then
+    AS=$AS4
+    IPV="g"
+elif [[ $AS6 ]]; then
+    AS=$AS6
+    IPV="6"
+fi
+if [[ $AS -lt 1 || $AS -eq 65535 || $AS -gt 4294967294 ]]; then
     echo "invalid ASN"
     exit 1
-elif [[ $1 -gt 64511 && $1 -lt 65535 ]]; then
+elif [[ $AS -gt 64511 && $AS -lt 65535 ]]; then
     echo "private 16bit ASN"
     exit 1
-elif [[ $1 -gt 4200000000 && $1 -lt 4294967295 ]]; then
+elif [[ $AS -gt 4200000000 && $AS -lt 4294967295 ]]; then
     echo "private 32bit ASN"
     exit 1
 fi
 
-OUT=$(whois -h whois.radb.net "!gas$1" | sed '1d' | sed '$d')
+WORD="as"
+OUT=$(whois -h whois.radb.net "!$IPV$WORD$AS" | sed '1d' | sed '$d')
 IFS=' ' read -ra NET <<< "$OUT"
 SNET=($(printf "%s\n" "${NET[@]}" | sort -u))
 for i in "${SNET[@]}"; do
