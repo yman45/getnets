@@ -21,15 +21,14 @@ EOF
 if [[ ! $1 ]]; then
     echo "$help"
     exit 1
+elif [[ $1 = '-h' || $1 = '--help' ]]; then
+    echo "$help"
+    exit 0
 elif [[ ! $2 ]]; then
     AS4="$1"
 else
     while :; do
         case $1 in
-            -h|--help)
-                echo "$help"
-                exit 0
-                ;;
             -4|--ipv4)
                 if [[ "$2" ]];then
                     AS4="$2"
@@ -51,7 +50,7 @@ else
                 fi
                 ;;
             ?*)
-                echo >&2 "unknown option $1"
+                echo >&2 "unrecognized option $1"
                 ;;
             *)
                 break
