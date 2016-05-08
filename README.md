@@ -6,7 +6,6 @@ Description: get ISP inetnums by ASN
 
 Usage:<br />
 ------------
-getnets ASN - where ASN is autonomous system number<br />
 getnets -4 ASN or getnets --ipv4 ASN - same as first<br />
 getnets -6 ASN or getnets --ipv6 ASN - for IPv6 subnets<br />
 getnets -h|--help for help<br />
